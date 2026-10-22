@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Pinball · Can't Decide? Let the Ball Decide!</title>
+<style>
+  :root {
+    --sky: #5c94fc;
+    --sky-2: #8fc7ff;
+    --cream: #fff6d5;
+    --ink: #1a1a1a;
+    --red: #e52521;
+    --green: #43b047;
+    --green-dark: #2a7a2e;
+    --gold: #fbd000;
+    --brown: #c84c0c;
+    --panel-shadow: 0 6px 0 rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(180deg, var(--sky) 0%, var(--sky-2) 100%);
+    min-height: 100vh;
+    padding: 18px 16px 40px;
+    font-family: "Trebuchet MS", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    position: relative;
+    overflow-x: hidden;
+  }
+  /* floating pixel clouds */
+  .cloud {
+    position: fixed;
+    font-size: 44px;
+    opacity: .9;
+    z-index: 0;
+    pointer-events: none;
+    animation: drift 26s linear infinite;
+  }
+  .cloud.c1 { top: 6%;  animation-duration: 30s; }
+  .cloud.c2 { top: 18%; animation-duration: 42s; animation-direction: reverse; font-size: 30px; }
+  .cloud.c3 { top: 55%; animation-duration: 55s; font-size: 36px; }
+  @keyframes drift {
+    from { left: -8%; } to { left: 105%; }
+  }
+
+  header { text-align: center; margin-bottom: 16px; position: relative; z-index: 1; }
+  header h1 {
+    display: inline-block;
+    font-size: 30px;
+    letter-spacing: 1px;
+    color: #fff;
+    text-shadow:
+      -3px -3px 0 var(--ink), 3px -3px 0 var(--ink),
+      -3px  3px 0 var(--ink), 3px  3px 0 var(--ink),
+       0    6px 0 var(--ink);
+    transform: rotate(-1.5deg);
+  }
+  header p {
+    margin-top: 10px;
+    display: inline-block;
+    background: var(--gold);
+    border: 3px solid var(--ink);
+    border-radius: 10px;
+    padding: 6px 16px;
+    font-weight: bold;
+    box-shadow: 0 4px 0 rgba(0,0,0,.3);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 310px 520px 260px;
+    gap: 18px;
+    justify-content: center;
+    align-items: start;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 1150px) {
+    .layout { grid-template-columns: minmax(300px, 520px); }
+  }
+
+  .panel {
+    background: var(--cream);
+    border: 4px solid var(--ink);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: var(--panel-shadow);
+  }
+  .panel h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    margin-bottom: 12px;
+    letter-spacing: .5px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: var(--red);
+    color: #fff;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 rgba(0,0,0,.3);
+    flex: none;
+  }
+
+  .field-label { font-size: 12px; font-weight: bold; color: #6b5b00; margin-bottom: 6px; }
+  input[type="text"] {
+    width: 100%;
+    background: #fff;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--red); background: #fffdf2; }
+  #question { margin-bottom: 14px; }
+
+  .option-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  #optionInput { flex: 1; }
+  button {
+    cursor: pointer;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: bold;
+    transition: transform .06s;
+  }
+  button:active { transform: translateY(3px); }
+  #addBtn {
+    background: var(--red);
+    color: #fff;
+    padding: 9px 16px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.35);
+  }
+  #addBtn:hover { filter: brightness(1.08); }
+
+  #optionList { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 14px; min-height: 34px; }
+  .opt {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--gold);
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 rgba(0,0,0,.25);
+    animation: popIn .18s ease-out;
+  }
+  .opt .coin { margin-right: 6px; }
+  @keyframes popIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+  .opt .del {
+    background: none; border: none; font-size: 16px; padding: 0 4px; color: #7a5c00;
+    box-shadow: none;
+  }
+  .opt .del:hover { color: var(--red); }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .presets button {
+    background: #fff;
+    font-size: 12px;
+    padding: 6px 10px;
+    box-shadow: 0 3px 0 rgba(0,0,0,.25);
+  }
+  .presets button:hover { background: var(--gold); }
+
+  #launchBtn {
+    width: 100%;
+    padding: 14px;
+    font-size: 18px;
+    letter-spacing: 2px;
+    background: var(--green);
+    color: #fff;
+    text-shadow: 1px 1px 0 rgba(0,0,0,.4);
+    box-shadow: 0 5px 0 var(--green-dark);
+    border-color: var(--ink);
+  }
+  #launchBtn:hover { filter: brightness(1.07); }
+  .tips {
+    font-size: 11.5px;
+    margin-top: 12px;
+    line-height: 1.7;
+    background: #fff;
+    border: 2px dashed var(--ink);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  kbd {
+    background: var(--ink); color: #fff; border-radius: 4px;
+    padding: 1px 6px; font-size: 11px; font-family: inherit;
+  }
+
+  /* ---- board ---- */
+  .board-wrap { position: relative; overflow: hidden; }
+  canvas { display: block; width: 100%; max-width: 520px; }
+  .aim-row { display: flex; align-items: center; gap: 10px; padding: 0 16px 14px; }
+  .aim-row .arrow { font-size: 20px; }
+  #aimSlider {
+    width: 100%;
+    accent-color: var(--red);
+    cursor: pointer;
+  }
+  #resultOverlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 20, 40, .55);
+    text-align: center;
+  }
+  .result-block {
+    background: var(--gold);
+    border: 5px solid var(--ink);
+    border-radius: 14px;
+    padding: 26px 34px;
+    box-shadow: 0 8px 0 rgba(0,0,0,.35);
+    animation: bump .45s cubic-bezier(.2, 2.2, .4, 1);
+    max-width: 82%;
+  }
+  @keyframes bump {
+    0% { transform: scale(.4) rotate(-6deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .result-block .hit { font-size: 13px; letter-spacing: 4px; font-weight: bold; color: #7a5c00; margin-bottom: 8px; }
+  .result-block .question { font-size: 13px; color: #5c4a00; margin-bottom: 10px; }
+  .result-block .answer { font-size: 30px; font-weight: bold; color: var(--ink); }
+  #resultOverlay .again {
+    margin-top: 20px;
+    background: var(--red);
+    color: #fff;
+    font-size: 15px;
+    padding: 11px 24px;
+    box-shadow: 0 5px 0 rgba(0,0,0,.35);
+  }
+
+  /* ---- history ---- */
+  #historyList { display: flex; flex-direction: column; gap: 8px; }
+  .h-item {
+    background: #fff;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    box-shadow: 0 3px 0 rgba(0,0,0,.2);
+  }
+  .h-item .hq { color: #777; }
+  .h-item .ha { color: var(--green-dark); font-weight: bold; }
+  .empty-hint { color: #8a7a4a; font-size: 12px; }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translateX(-50%) translateY(20px);
+    background: #fff;
+    border: 3px solid var(--ink);
+    color: var(--red);
+    font-weight: bold;
+    padding: 10px 22px;
+    border-radius: 12px;
+    font-size: 14px;
+    box-shadow: 0 5px 0 rgba(0,0,0,.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 99;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="cloud c1">☁️</div>
+<div class="cloud c2">☁️</div>
+<div class="cloud c3">🍄</div>
+
+<header>
+  <h1>🍄 DECISION PINBALL</h1><br>
+  <p>⭐ Can't decide? Aim the cannon, fire the ball, and let fate pick! ⭐</p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: setup -->
+  <section class="panel">
+    <h2><span class="badge">1</span> Set up your dilemma</h2>
+    <div class="field-label">WHAT ARE YOU DECIDING? (OPTIONAL)</div>
+    <input id="question" type="text" maxlength="40" placeholder="e.g. What's for dinner?">
+    <div class="field-label">ADD OPTIONS (2–6)</div>
+    <div class="option-row">
+      <input id="optionInput" type="text" maxlength="12" placeholder="e.g. Pizza">
+      <button id="addBtn">Add</button>
+    </div>
+    <div id="optionList"></div>
+    <div class="presets">
+      <button data-preset="What's for dinner?|Pizza|Ramen|Burgers|Salad">🍽️ Dinner</button>
+      <button data-preset="Weekend plans?|Stay home|Hiking|Movies|Mall">🎮 Weekend</button>
+      <button data-preset="Should I buy it?|BUY IT|Wait|Wishlist|Nope">🛒 Buy it?</button>
+      <button data-preset="Sleep now?|Sleep NOW|5 more min|30 more min|All-nighter">😴 Sleep?</button>
+    </div>
+    <button id="launchBtn">🔥 FIRE! 🔥</button>
+    <div class="tips">
+      🎯 Aim with the slider or <kbd>←</kbd> <kbd>→</kbd> keys<br>
+      🚀 Launch with the button or <kbd>Space</kbd><br>
+      🪙 Whichever pipe swallows the ball — that's your answer!
+    </div>
+  </section>
+
+  <!-- CENTER: board -->
+  <section class="panel board-wrap">
+    <canvas id="board" width="520" height="700"></canvas>
+    <div class="aim-row">
+      <span class="arrow">⬅</span>
+      <input id="aimSlider" type="range" min="-60" max="60" value="0" step="1" aria-label="Aim angle">
+      <span class="arrow">➡</span>
+    </div>
+    <div id="resultOverlay">
+      <div class="result-block">
+        <div class="hit">★ THE BALL HAS SPOKEN ★</div>
+        <div class="question" id="resultQuestion"></div>
+        <div class="answer" id="resultAnswer"></div>
+      </div>
+      <button class="again" id="againBtn">🔁 PLAY AGAIN</button>
+    </div>
+  </section>
+
+  <!-- RIGHT: history -->
+  <section class="panel">
+    <h2><span class="badge">2</span> ⭐ Quest Log</h2>
+    <div id="historyList"><div class="empty-hint">No fate decided yet… fire the first ball!</div></div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ================= DOM ================= */
+  const questionInput = document.getElementById("question");
+  const optionInput   = document.getElementById("optionInput");
+  const addBtn        = document.getElementById("addBtn");
+  const optionList    = document.getElementById("optionList");
+  const launchBtn     = document.getElementById("launchBtn");
+  const canvas        = document.getElementById("board");
+  const ctx           = canvas.getContext("2d");
+  const overlay       = document.getElementById("resultOverlay");
+  const resultQ       = document.getElementById("resultQuestion");
+  const resultA       = document.getElementById("resultAnswer");
+  const againBtn      = document.getElementById("againBtn");
+  const historyList   = document.getElementById("historyList");
+  const toastEl       = document.getElementById("toast");
+  const aimSlider     = document.getElementById("aimSlider");
+
+  const W = canvas.width, H = canvas.height;
+  const BALL_R = 9;
+  const CEIL = 30;                 // brick ceiling
+  const GROUND = H - 24;           // ground top
+  const BIN_TOP = H - 118;         // top of the pipe zone
+  const CENTER_HALF = 78;          // half-width of the cannon gap
+  const CANNON = { x: W / 2, y: H - 20, len: 40 };
+  const PEG_R = 8;
+
+  let options = [];
+  let ball = null;
+  let ballState = "idle";          // idle | flying | landed
+  let particles = [];
+  let landedIndex = -1;
+  let stuckTimer = 0;
+  let centerTimer = 0;
+  let aimDeg = 0;                  // -60 .. 60, 0 = straight up
+  let history = [];
+  let frame = 0;
+
+  /* ================= board geometry ================= */
+  function buildPegs() {
+    const pegs = [];
+    const rows = 7;
+    for (let r = 0; r < rows; r++) {
+      const y = 115 + r * 58;
+      const count = r % 2 === 0 ? 8 : 7;
+      const gap = W / (count + 1);
+      for (let i = 0; i < count; i++) {
+        const x = r % 2 === 0 ? gap * (i + 1) : gap * (i + 1) + gap / 2;
+        // keep a clear launch channel above the cannon so straight shots fly to the ceiling
+        if (r >= rows - 3 && Math.abs(x - W / 2) < 34) continue;
+        pegs.push({ x: Math.min(W - 20, Math.max(20, x)), y });
+      }
+    }
+    return pegs;
+  }
+  const pegs = buildPegs();
+
+  // split options into left pipes and right pipes around the cannon
+  function binLayout() {
+    const n = options.length;
+    if (n === 0) return { bins: [], n: 0 };
+    const leftCount = Math.ceil(n / 2);
+    const bins = [];
+    const lw = (W / 2 - CENTER_HALF - 10) / leftCount;
+    for (let i = 0; i < leftCount; i++) {
+      bins.push({ x1: 10 + i * lw, x2: 10 + (i + 1) * lw, label: options[i] });
+    }
+    const rc = n - leftCount;
+    const rw = (W - 10 - (W / 2 + CENTER_HALF)) / Math.max(rc, 1);
+    for (let i = 0; i < rc; i++) {
+      bins.push({ x1: W / 2 + CENTER_HALF + i * rw, x2: W / 2 + CENTER_HALF + (i + 1) * rw, label: options[leftCount + i] });
+    }
+    return { bins, n };
+  }
+
+  /* ================= sound (WebAudio, synthesized) ================= */
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  let lastBlip = 0;
+  function blip(freq, vol = 0.07, dur = 0.06) {
+    if (!audioCtx) return;
+    const now = performance.now();
+    if (now - lastBlip < 30) return;
+    lastBlip = now;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + dur);
+  }
+  function fireSound() {
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.setValueAtTime(220, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.18);
+    g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.22);
+  }
+  function warpSound() {       // pipe "glorp"
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(700, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.35);
+    g.gain.setValueAtTime(0.14, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.42);
+  }
+  function fanfare() {         // little level-clear arpeggio
+    if (!audioCtx) return;
+    [523, 659, 784, 1047, 1319].forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "square";
+      o.frequency.value = f;
+      const t = audioCtx.currentTime + i * 0.1;
+      g.gain.setValueAtTime(0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.26);
+    });
+  }
+
+  /* ================= helpers ================= */
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+  }
+
+  function renderOptions() {
+    optionList.innerHTML = "";
+    if (options.length === 0) {
+      const hint = document.createElement("div");
+      hint.className = "empty-hint";
+      hint.textContent = "No options yet — add a few, or tap a preset above 👆";
+      optionList.appendChild(hint);
+      return;
+    }
+    options.forEach((opt, i) => {
+      const div = document.createElement("div");
+      div.className = "opt";
+      const left = document.createElement("span");
+      const coin = document.createElement("span");
+      coin.className = "coin";
+      coin.textContent = "🪙";
+      left.appendChild(coin);
+      left.appendChild(document.createTextNode(opt));
+      const del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "×";
+      del.title = "Remove this option";
+      del.addEventListener("click", () => {
+        if (ballState === "flying") { toast("Wait! The ball is still flying!"); return; }
+        options.splice(i, 1);
+        renderOptions();
+      });
+      div.appendChild(left);
+      div.appendChild(del);
+      optionList.appendChild(div);
+    });
+  }
+
+  function addOption() {
+    const text = optionInput.value.trim();
+    if (!text) { toast("Type something first!"); optionInput.focus(); return; }
+    if (options.length >= 6) { toast("Max 6 options — even fate has limits!"); return; }
+    if (options.includes(text)) { toast("You already added that one!"); return; }
+    options.push(text);
+    optionInput.value = "";
+    renderOptions();
+    blip(660, 0.05);
+  }
+
+  /* ================= launch & physics ================= */
+  function launch() {
+    ensureAudio();
+    if (ballState === "flying") { toast("The ball is still in the air — patience!"); return; }
+    if (options.length < 2) { toast("Add at least 2 options first!"); optionInput.focus(); return; }
+    overlay.style.display = "none";
+    landedIndex = -1;
+    const rad = aimDeg * Math.PI / 180;
+    const power = 23 + Math.random() * 1.5;     // strong enough to reach the ceiling
+    ball = {
+      x: CANNON.x + Math.sin(rad) * (CANNON.len + BALL_R),
+      y: CANNON.y - Math.cos(rad) * (CANNON.len + BALL_R),
+      vx: Math.sin(rad) * power,
+      vy: -Math.cos(rad) * power
+    };
+    ballState = "flying";
+    stuckTimer = 0; centerTimer = 0; flightFrames = 0;
+    fireSound();
+  }
+
+  function collideSegment(x1, y1, x2, y2, restitution) {
+    // circle vs line segment: push out along normal and reflect
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    let t = ((ball.x - x1) * dx + (ball.y - y1) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + t * dx, py = y1 + t * dy;
+    const ddx = ball.x - px, ddy = ball.y - py;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist < BALL_R && dist > 0.001) {
+      const nx = ddx / dist, ny = ddy / dist;
+      ball.x = px + nx * BALL_R;
+      ball.y = py + ny * BALL_R;
+      const dot = ball.vx * nx + ball.vy * ny;
+      if (dot < 0) {
+        ball.vx = (ball.vx - 2 * dot * nx) * restitution;
+        ball.vy = (ball.vy - 2 * dot * ny) * restitution;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function landInBin(idx) {
+    landedIndex = idx;
+    ballState = "landed";
+    burst(ball.x, BIN_TOP + 6);
+    warpSound();
+    setTimeout(fanfare, 260);
+    recordHistory(options[landedIndex]);
+    setTimeout(showResult, 500);
+  }
+
+  let flightFrames = 0;
+
+  function stepBall() {
+    if (ballState !== "flying") return;
+    const sub = 4;
+    flightFrames++;
+    // "the ball gets tired": after ~8s of flight, gravity ramps up so it always lands
+    const tired = flightFrames > 480 ? Math.min(0.25, 0.16 + (flightFrames - 480) * 0.0004) : 0.16;
+    for (let s = 0; s < sub; s++) {
+      ball.vy += tired / sub;
+      const spd = Math.hypot(ball.vx, ball.vy);
+      if (spd > 24) { ball.vx *= 24 / spd; ball.vy *= 24 / spd; }
+
+      ball.x += ball.vx / sub;
+      ball.y += ball.vy / sub;
+
+      // walls
+      if (ball.x - BALL_R < 8)      { ball.x = 8 + BALL_R;      ball.vx = Math.abs(ball.vx) * 0.65; blip(320, 0.04); }
+      if (ball.x + BALL_R > W - 8)  { ball.x = W - 8 - BALL_R;  ball.vx = -Math.abs(ball.vx) * 0.65; blip(320, 0.04); }
+      // brick ceiling
+      if (ball.y - BALL_R < CEIL)   { ball.y = CEIL + BALL_R;   ball.vy = Math.abs(ball.vy) * 0.6; blip(400, 0.05); }
+
+      // coin pegs
+      for (const p of pegs) {
+        const dx = ball.x - p.x, dy = ball.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        const minD = BALL_R + PEG_R;
+        if (dist < minD && dist > 0.001) {
+          const nx = dx / dist, ny = dy / dist;
+          ball.x = p.x + nx * minD;
+          ball.y = p.y + ny * minD;
+          const dot = ball.vx * nx + ball.vy * ny;
+          if (dot < 0) {
+            ball.vx = (ball.vx - 2 * dot * nx) * 0.85;
+            ball.vy = (ball.vy - 2 * dot * ny) * 0.85;
+            ball.vx += (Math.random() * 0.4 - 0.2);  // a pinch of fate
+            blip(600 + Math.random() * 500, 0.05);
+          }
+        }
+      }
+
+      // cannon bumper in the center gap (round, deflects the ball sideways)
+      {
+        const dx = ball.x - CANNON.x, dy = ball.y - (CANNON.y - 6);
+        const dist = Math.hypot(dx, dy);
+        const minD = BALL_R + 20;
+        if (dist < minD && dist > 0.001) {
+          const nx = dx / dist, ny = dy / dist;
+          ball.x = CANNON.x + nx * minD;
+          ball.y = (CANNON.y - 6) + ny * minD;
+          const dot = ball.vx * nx + ball.vy * ny;
+          if (dot < 0) {
+            ball.vx = (ball.vx - 2 * dot * nx) * 0.7 + Math.sign(dx || 1) * 1.2;
+            ball.vy = (ball.vy - 2 * dot * ny) * 0.7;
+            blip(240, 0.06);
+          }
+        }
+      }
+
+      // anti-stuck nudge
+      if (Math.hypot(ball.vx, ball.vy) < 0.8 && ball.y < BIN_TOP) {
+        stuckTimer++;
+        if (stuckTimer > 55) { ball.vx += Math.random() * 3 - 1.5; ball.vy += 0.6; stuckTimer = 0; }
+      } else stuckTimer = 0;
+
+      // failsafe: ball loitering in the cannon gap below pipe tops
+      if (ball.y > BIN_TOP && Math.abs(ball.x - CANNON.x) < CENTER_HALF) {
+        centerTimer++;
+        if (centerTimer > 90) { ball.vx += (ball.x >= CANNON.x ? 2 : -2); ball.vy -= 1; centerTimer = 0; }
+      } else centerTimer = 0;
+
+      // landing: FALLING (vy > 0), below pipe rim, and outside the cannon gap
+      // (vy > 0 prevents the ball from "landing" instantly at the cannon mouth)
+      if (ball.vy > 0 && ball.y + BALL_R >= BIN_TOP + 12 && Math.abs(ball.x - CANNON.x) > CENTER_HALF - 4) {
+        const { bins, n } = binLayout();
+        let idx = -1;
+        for (let i = 0; i < n; i++) {
+          if (ball.x >= bins[i].x1 && ball.x <= bins[i].x2) { idx = i; break; }
+        }
+        if (idx === -1) idx = ball.x < CANNON.x ? 0 : n - 1;
+        landInBin(idx);
+        return;
+      }
+
+      // last-resort failsafe: ball reached the ground area — nearest side bin wins
+      if (ball.y > GROUND - BALL_R) {
+        const n = options.length;
+        ball.y = GROUND - BALL_R;
+        landInBin(ball.x < CANNON.x ? 0 : n - 1);
+        return;
+      }
+    }
+  }
+
+  function burst(x, y) {
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = Math.random() * 4 + 1;
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 2.5,
+        life: 1,
+        color: ["#fbd000", "#e52521", "#43b047", "#ffffff", "#5c94fc"][i % 5]
+      });
+    }
+  }
+
+  function showResult() {
+    resultQ.textContent = questionInput.value.trim() || "Your dilemma";
+    resultA.textContent = options[landedIndex];
+    overlay.style.display = "flex";
+  }
+
+  function recordHistory(answer) {
+    const q = questionInput.value.trim() || "(no question)";
+    const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    history.unshift({ q, answer, time });
+    if (history.length > 12) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    historyList.innerHTML = "";
+    if (history.length === 0) {
+      historyList.innerHTML = '<div class="empty-hint">No fate decided yet… fire the first ball!</div>';
+      return;
+    }
+    history.forEach(h => {
+      const div = document.createElement("div");
+      div.className = "h-item";
+      const q = document.createElement("div");
+      q.className = "hq";
+      q.textContent = h.time + " · " + h.q;
+      const a = document.createElement("div");
+      a.className = "ha";
+      a.textContent = "★ " + h.answer;
+      div.appendChild(q); div.appendChild(a);
+      historyList.appendChild(div);
+    });
+  }
+
+  /* ================= drawing ================= */
+  function drawBrickRow(y, h) {
+    ctx.fillStyle = "#c84c0c";
+    ctx.fillRect(0, y, W, h);
+    ctx.strokeStyle = "#7a2b00";
+    ctx.lineWidth = 2;
+    for (let x = 0; x < W; x += 40) {
+      ctx.strokeRect(x, y, 40, h / 2);
+      ctx.strokeRect(x - 20, y + h / 2, 40, h / 2);
+    }
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+    ctx.moveTo(0, y + h); ctx.lineTo(W, y + h);
+    ctx.stroke();
+  }
+
+  function drawCoin(p) {
+    const wob = Math.abs(Math.sin(frame * 0.05 + p.x));   // coin "spin" wobble
+    const rx = 3 + 5 * wob;
+    ctx.fillStyle = "#fbd000";
+    ctx.strokeStyle = "#8a6400";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, rx, PEG_R, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    if (rx > 5.5) {
+      ctx.fillStyle = "#ffef9e";
+      ctx.fillRect(p.x - 1.5, p.y - 4, 3, 8);
+    }
+  }
+
+  function drawPipeBin(b, isWinner) {
+    const pad = 5;
+    const x = b.x1 + pad, w = b.x2 - b.x1 - pad * 2;
+    // pipe body
+    ctx.fillStyle = isWinner ? "#5ede5e" : "#43b047";
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 3;
+    ctx.fillRect(x, BIN_TOP + 10, w, GROUND - BIN_TOP - 10);
+    ctx.strokeRect(x, BIN_TOP + 10, w, GROUND - BIN_TOP - 10);
+    // rim
+    ctx.fillStyle = isWinner ? "#7dff7d" : "#5ede5e";
+    ctx.fillRect(x - 4, BIN_TOP, w + 8, 18);
+    ctx.strokeRect(x - 4, BIN_TOP, w + 8, 18);
+    // dark inner slot
+    ctx.fillStyle = "#0d3a10";
+    ctx.fillRect(x + 4, BIN_TOP + 4, w - 8, 8);
+    // label
+    ctx.save();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px 'Trebuchet MS', sans-serif";
+    ctx.textAlign = "center";
+    const label = b.label || "";
+    const midX = x + w / 2;
+    if (label.length <= 7) {
+      ctx.fillText(label, midX, BIN_TOP + 52);
+    } else {
+      ctx.fillText(label.slice(0, 7), midX, BIN_TOP + 46);
+      ctx.fillText(label.slice(7, 14), midX, BIN_TOP + 62);
+    }
+    ctx.restore();
+    if (isWinner) {
+      ctx.fillStyle = "rgba(255,255,255," + (0.25 + 0.2 * Math.sin(frame * 0.2)).toFixed(3) + ")";
+      ctx.fillRect(x - 4, BIN_TOP, w + 8, GROUND - BIN_TOP);
+    }
+  }
+
+  function drawCannon() {
+    const rad = aimDeg * Math.PI / 180;
+    ctx.save();
+    ctx.translate(CANNON.x, CANNON.y);
+    ctx.rotate(-rad);
+    // barrel
+    ctx.fillStyle = "#e52521";
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-10, -CANNON.len, 20, CANNON.len + 6, 6);
+    ctx.fill();
+    ctx.stroke();
+    // barrel mouth
+    ctx.fillStyle = "#1a1a1a";
+    ctx.fillRect(-11, -CANNON.len - 4, 22, 7);
+    ctx.restore();
+    // base
+    ctx.fillStyle = "#e52521";
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(CANNON.x, CANNON.y, 16, Math.PI, 0);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawAimGuide() {
+    if (ballState === "flying") return;
+    const rad = aimDeg * Math.PI / 180;
+    ctx.save();
+    for (let i = 1; i <= 7; i++) {
+      const d = CANNON.len + 14 + i * 24;
+      const x = CANNON.x + Math.sin(rad) * d;
+      const y = CANNON.y - Math.cos(rad) * d;
+      ctx.globalAlpha = Math.max(0, 0.55 - i * 0.06);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawCloud(x, y, s) {
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.beginPath();
+    ctx.arc(x, y, 14 * s, 0, Math.PI * 2);
+    ctx.arc(x + 16 * s, y - 8 * s, 16 * s, 0, Math.PI * 2);
+    ctx.arc(x + 34 * s, y, 13 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function draw() {
+    frame++;
+    // sky
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#5c94fc");
+    bg.addColorStop(1, "#9bd0ff");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    drawCloud(70 + 10 * Math.sin(frame * 0.01), 70, 1);
+    drawCloud(400 + 8 * Math.cos(frame * 0.008), 120, 0.7);
+    drawCloud(240, 190, 0.5);
+
+    // brick ceiling & ground
+    drawBrickRow(0, CEIL);
+    drawBrickRow(GROUND, H - GROUND);
+
+    // pipe bins
+    const { bins, n } = binLayout();
+    for (let i = 0; i < n; i++) drawPipeBin(bins[i], i === landedIndex);
+
+    // coins
+    for (const p of pegs) drawCoin(p);
+
+    // idle hint
+    if (options.length === 0 && ballState === "idle") {
+      ctx.fillStyle = "rgba(255,255,255,.95)";
+      ctx.font = "bold 15px 'Trebuchet MS', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("👈 Add options on the left, then FIRE!", W / 2, 360);
+    }
+
+    drawAimGuide();
+    drawCannon();
+
+    // particles
+    for (const pt of particles) {
+      ctx.globalAlpha = Math.max(0, pt.life);
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ball (a shiny "power orb")
+    if (ball) {
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 2.5;
+      const g = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, BALL_R);
+      g.addColorStop(0, "#fff6d5");
+      g.addColorStop(1, "#e52521");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  function loop() {
+    stepBall();
+    particles = particles.filter(p => p.life > 0);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.15;
+      p.life -= 0.03;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* ================= events ================= */
+  addBtn.addEventListener("click", addOption);
+  optionInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { addOption(); e.preventDefault(); }
+  });
+  launchBtn.addEventListener("click", launch);
+  againBtn.addEventListener("click", launch);
+  aimSlider.addEventListener("input", () => { aimDeg = Number(aimSlider.value); });
+
+  document.querySelectorAll(".presets button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const parts = btn.dataset.preset.split("|");
+      questionInput.value = parts[0];
+      options = parts.slice(1);
+      renderOptions();
+      blip(660, 0.05);
+    });
+  });
+
+  // keyboard controls (ignored while typing in a text field)
+  document.addEventListener("keydown", e => {
+    const el = document.activeElement;
+    const typing = el && el.tagName === "INPUT" && el.type === "text";
+    if (typing) return;
+    if (e.code === "Space") { launch(); e.preventDefault(); }
+    if (e.code === "ArrowLeft")  { aimDeg = Math.max(-60, aimDeg - 3); aimSlider.value = aimDeg; e.preventDefault(); }
+    if (e.code === "ArrowRight") { aimDeg = Math.min(60, aimDeg + 3);  aimSlider.value = aimDeg; e.preventDefault(); }
+  });
+
+  renderOptions();
+  loop();
+})();
+</script>
+</body>
+</html>
