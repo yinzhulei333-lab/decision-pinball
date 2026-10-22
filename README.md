@@ -54,6 +54,8 @@ python3 -m http.server 8000
 
 ## Screenshots / demo
 
+**▶ Play it live:** https://decision-pinball.app.workbuddy.host/?sharecode=IJYOOZD4ZP
+
 ![Decision Pinball gameplay](screenshot.png)
 
 *(Optional: replace with your own screenshot of a landing moment, and/or add a short screen recording for the sound.)*
