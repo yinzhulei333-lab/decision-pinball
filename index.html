@@ -606,11 +606,11 @@
       ball.x += ball.vx / sub;
       ball.y += ball.vy / sub;
 
-      // walls
-      if (ball.x - BALL_R < 8)      { ball.x = 8 + BALL_R;      ball.vx = Math.abs(ball.vx) * 0.65; blip(320, 0.04); }
-      if (ball.x + BALL_R > W - 8)  { ball.x = W - 8 - BALL_R;  ball.vx = -Math.abs(ball.vx) * 0.65; blip(320, 0.04); }
+      // walls (bouncier = longer, more suspenseful rallies)
+      if (ball.x - BALL_R < 8)      { ball.x = 8 + BALL_R;      ball.vx = Math.abs(ball.vx) * 0.72; blip(320, 0.04); }
+      if (ball.x + BALL_R > W - 8)  { ball.x = W - 8 - BALL_R;  ball.vx = -Math.abs(ball.vx) * 0.72; blip(320, 0.04); }
       // brick ceiling
-      if (ball.y - BALL_R < CEIL)   { ball.y = CEIL + BALL_R;   ball.vy = Math.abs(ball.vy) * 0.6; blip(400, 0.05); }
+      if (ball.y - BALL_R < CEIL)   { ball.y = CEIL + BALL_R;   ball.vy = Math.abs(ball.vy) * 0.7; blip(400, 0.05); }
 
       // coin pegs
       for (const p of pegs) {
@@ -623,8 +623,8 @@
           ball.y = p.y + ny * minD;
           const dot = ball.vx * nx + ball.vy * ny;
           if (dot < 0) {
-            ball.vx = (ball.vx - 2 * dot * nx) * 0.85;
-            ball.vy = (ball.vy - 2 * dot * ny) * 0.85;
+            ball.vx = (ball.vx - 2 * dot * nx) * 0.88;
+            ball.vy = (ball.vy - 2 * dot * ny) * 0.88;
             ball.vx += (Math.random() * 0.4 - 0.2);  // a pinch of fate
             blip(600 + Math.random() * 500, 0.05);
           }
@@ -806,7 +806,7 @@
     const rad = aimDeg * Math.PI / 180;
     ctx.save();
     ctx.translate(CANNON.x, CANNON.y);
-    ctx.rotate(-rad);
+    ctx.rotate(rad);   // +aim tilts the barrel to the RIGHT, matching the ball trajectory
     // barrel
     ctx.fillStyle = "#e52521";
     ctx.strokeStyle = "#1a1a1a";
@@ -900,23 +900,44 @@
     }
     ctx.globalAlpha = 1;
 
-    // ball (a shiny "power orb")
-    if (ball) {
-      ctx.strokeStyle = "#1a1a1a";
-      ctx.lineWidth = 2.5;
-      const g = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, BALL_R);
-      g.addColorStop(0, "#fff6d5");
-      g.addColorStop(1, "#e52521");
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+    // ball — a shiny "power orb"; when landed it sinks INTO the pipe and fades out
+    if (ball && ballState !== "done") {
+      let alpha = 1;
+      const sinking = ballState === "landed";
+      if (sinking) {
+        alpha = Math.max(0, 1 - (ball.y - (BIN_TOP + 12)) / 60);
+      }
+      if (alpha > 0) {
+        ctx.save();
+        if (sinking) {
+          // clip below the pipe rim so the ball visibly disappears INSIDE the pipe
+          ctx.beginPath();
+          ctx.rect(0, BIN_TOP + 12, W, H);
+          ctx.clip();
+          ctx.globalAlpha = alpha;
+        }
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 2.5;
+        const g = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, BALL_R);
+        g.addColorStop(0, "#fff6d5");
+        g.addColorStop(1, "#e52521");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 
   function loop() {
     stepBall();
+    // landed ball sinks into the pipe, then disappears
+    if (ballState === "landed" && ball) {
+      ball.y += 2.5;
+      if (ball.y > GROUND + 20) ball = null;
+    }
     particles = particles.filter(p => p.life > 0);
     for (const p of particles) {
       p.x += p.vx; p.y += p.vy;
