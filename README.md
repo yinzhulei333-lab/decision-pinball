@@ -60,6 +60,13 @@ python3 -m http.server 8000
 
 *(Optional: replace with your own screenshot of a landing moment, and/or add a short screen recording for the sound.)*
 
+## Companion piece
+
+An earlier companion exploration for the same brief: **VINYL STATIC** 🎧 — an interactive vinyl record driven by your voice and motion, where interaction is a continuous performance rather than an aim-and-fire game.
+
+- Live: https://yinzhulei333-lab.github.io/vinyl-static/
+- Source: https://github.com/yinzhulei333-lab/vinyl-static
+
 ## Credits
 
 - All code written from scratch for this assignment (with AI assistance — see PROCESS.md).
